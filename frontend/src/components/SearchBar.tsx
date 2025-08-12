@@ -13,7 +13,7 @@ const formatDate = (dateValue: string | Date): string => {
   try {
     const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
     return date.toLocaleDateString();
-  } catch (error) {
+  } catch {
     return 'Invalid Date';
   }
 };
@@ -222,7 +222,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
               <div className="p-8 text-center">
                 <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-gray-500">
-                  No results found for "{query}"
+                  No results found for &quot;{query}&quot;
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                   Try adjusting your search terms

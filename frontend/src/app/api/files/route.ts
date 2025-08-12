@@ -63,11 +63,13 @@ export async function GET(request: NextRequest) {
     const prefix = folderId ? `${folderId}/` : '';
     const s3Files = await S3Service.listFiles(prefix);
     
-    const files = s3Files.map((s3File: any) => ({
-      id: `file_${s3File.Key}`,
-      name: s3File.Key?.split('/').pop() || 'Unknown',
-      size: s3File.Size || 0,
-      type: 'application/octet-stream',
+    const files = s3Files
+      .filter((item): item is { Key?: string; Size?: number; LastModified?: Date } => 'Key' in item)
+      .map((s3File) => ({
+        id: `file_${s3File.Key}`,
+        name: s3File.Key?.split('/').pop() || 'Unknown',
+        size: s3File.Size || 0,
+        type: 'application/octet-stream',
       url: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3File.Key}`,
       s3Key: s3File.Key,
       folderId: folderId || null,

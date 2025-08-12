@@ -1,5 +1,14 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, CopyObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, CopyObjectCommand, GetObjectCommand, _Object } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+// Type definitions
+interface FileInfo {
+  ContentLength?: number;
+  ContentType?: string;
+  LastModified?: Date;
+  ETag?: string;
+  Metadata?: Record<string, string>;
+}
 
 // Initialize S3 client
 const s3Client = new S3Client({
@@ -47,7 +56,7 @@ export class S3Service {
   }
 
   // List files in a folder
-  static async listFiles(prefix: string = ''): Promise<any[]> {
+  static async listFiles(prefix: string = ''): Promise<(_Object | { Prefix?: string })[]> {
     try {
       const command = new ListObjectsV2Command({
         Bucket: BUCKET_NAME,
@@ -98,7 +107,7 @@ export class S3Service {
   }
 
   // Get file info
-  static async getFileInfo(key: string): Promise<any> {
+  static async getFileInfo(key: string): Promise<FileInfo> {
     try {
       const command = new HeadObjectCommand({
         Bucket: BUCKET_NAME,

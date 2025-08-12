@@ -47,11 +47,11 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [uploadProgress, _setUploadProgress] = useState<UploadProgress[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' });
   const [loading, setLoading] = useState(false);
 
   // Load files from API

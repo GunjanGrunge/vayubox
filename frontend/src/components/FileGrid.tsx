@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
-  File,
   Folder,
   MoreVertical,
   Star,
@@ -24,7 +24,7 @@ const formatDate = (dateValue: string | Date): string => {
   try {
     const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
     return date.toLocaleDateString();
-  } catch (error) {
+  } catch {
     return 'Invalid Date';
   }
 };
@@ -257,9 +257,11 @@ const FileGrid: React.FC<FileGridProps> = ({
               <div className="flex flex-col items-center space-y-2">
                 <div className="relative">
                   {file.thumbnailUrl ? (
-                    <img
+                    <Image
                       src={file.thumbnailUrl}
                       alt={file.name}
+                      width={48}
+                      height={48}
                       className="h-12 w-12 object-cover rounded"
                     />
                   ) : (
