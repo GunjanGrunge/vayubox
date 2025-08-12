@@ -1,16 +1,17 @@
-# DropAws - Cloud File Management System
+# Vayubox - Cloud File Management System
 
 A modern, secure file management system with cloud storage capabilities, built with Next.js and AWS S3.
 
 ## 🚀 Features
 
-- **Secure Authentication**: Firebase Authentication with email/password
+- **Secure Authentication**: Simple admin authentication with environment variables
 - **Cloud Storage**: AWS S3 integration for reliable file storage
 - **Modern UI**: Responsive design with smooth animations
 - **File Management**: Upload, organize, search, and manage files
 - **Drag & Drop**: Intuitive file upload interface
-- **Real-time Updates**: Live updates using Firebase Firestore
+- **Real-time Updates**: Live file operations with instant feedback
 - **Mobile-Friendly**: Works seamlessly across all devices
+- **GitHub Pages**: Deployed and hosted on GitHub Pages
 
 ## 🎨 Design
 
@@ -23,7 +24,7 @@ The application features a modern, futuristic design with a custom color palette
 ## 🏗️ Project Structure
 
 ```
-DropAws/
+Vayubox/
 ├── .github/
 │   └── instructions/
 │       └── context.instructions.md
@@ -67,8 +68,8 @@ DropAws/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/GunjanSarkar/dropAws.git
-   cd dropAws
+   git clone https://github.com/GunjanGrunge/vayubox.git
+   cd vayubox
    ```
 
 2. **Install frontend dependencies**
