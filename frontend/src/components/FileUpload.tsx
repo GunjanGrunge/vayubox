@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { formatFileSize } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { showToast } from '@/lib/toast';
 
 interface FileUploadProps {
   onFilesSelect: (files: File[]) => void;
@@ -29,12 +30,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
     const newFiles = [...selectedFiles, ...acceptedFiles].slice(0, maxFiles);
     setSelectedFiles(newFiles);
     onFilesSelect(newFiles);
+    
+    if (acceptedFiles.length > 0) {
+      showToast.success(`${acceptedFiles.length} file(s) added successfully`);
+    }
   }, [selectedFiles, maxFiles, onFilesSelect]);
 
   const removeFile = (index: number) => {
+    const removedFile = selectedFiles[index];
     const newFiles = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(newFiles);
     onFilesSelect(newFiles);
+    showToast.success(`Removed ${removedFile.name}`);
   };
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
@@ -49,10 +56,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
       <div
         {...getRootProps()}
         className={cn(
-          'relative cursor-pointer rounded-xl border-2 border-dashed transition-all duration-300 p-8',
+          'relative cursor-pointer rounded-xl border-2 border-dashed transition-all duration-300 p-4 sm:p-6 lg:p-8',
           isDragActive
-            ? 'border-primary-purple bg-primary-purple bg-opacity-5 scale-105'
-            : 'border-gray-300 hover:border-primary-purple hover:bg-gray-50',
+            ? 'border-primary-purple bg-primary-purple bg-opacity-10 scale-105 glow'
+            : 'border-primary-purple/30 hover:border-primary-purple hover:bg-primary-purple/5',
           selectedFiles.length > 0 && 'border-primary-purple bg-primary-purple bg-opacity-5'
         )}
       >
@@ -66,25 +73,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
           >
             <Upload
               className={cn(
-                'h-12 w-12 transition-colors duration-300',
-                isDragActive ? 'text-primary-purple' : 'text-gray-400'
+                'h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 transition-colors duration-300',
+                isDragActive ? 'text-primary-purple' : 'text-primary-yellow/60'
               )}
             />
           </motion.div>
           
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-base sm:text-lg font-semibold text-primary-yellow mb-2">
             {isDragActive ? 'Drop files here' : 'Upload your files'}
           </h3>
           
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-xs sm:text-sm text-primary-yellow/70 mb-4 px-2">
             Drag and drop files here, or click to browse
           </p>
           
-          <Button variant="outline" size="sm" type="button">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            type="button"
+            className="border-primary-purple/30 text-primary-yellow hover:bg-primary-purple/20"
+          >
             Choose Files
           </Button>
           
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-primary-yellow/50 mt-2 px-2">
             Max {maxFiles} files, up to {formatFileSize(maxSize)} each
           </p>
         </div>
@@ -92,18 +104,22 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       {/* File Rejections */}
       {fileRejections.length > 0 && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <h4 className="text-sm font-medium text-red-800 mb-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+        >
+          <h4 className="text-sm font-medium text-red-400 mb-2">
             Some files were rejected:
           </h4>
-          <ul className="text-sm text-red-700 space-y-1">
+          <ul className="text-sm text-red-300 space-y-1">
             {fileRejections.map(({ file, errors }, index) => (
-              <li key={index}>
+              <li key={index} className="text-xs sm:text-sm">
                 {file.name}: {errors.map(e => e.message).join(', ')}
               </li>
             ))}
           </ul>
-        </div>
+        </motion.div>
       )}
 
       {/* Selected Files */}
@@ -115,25 +131,25 @@ const FileUpload: React.FC<FileUploadProps> = ({
             exit={{ opacity: 0, height: 0 }}
             className="mt-6"
           >
-            <h4 className="text-sm font-medium text-gray-900 mb-3">
+            <h4 className="text-sm font-medium text-primary-yellow mb-3">
               Selected Files ({selectedFiles.length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
               {selectedFiles.map((file, index) => (
                 <motion.div
                   key={`${file.name}-${index}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-primary-purple/10 border border-primary-purple/20 rounded-lg"
                 >
-                  <div className="flex items-center space-x-3">
-                    <File className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <File className="h-5 w-5 text-primary-purple flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-primary-yellow truncate">
                         {file.name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-primary-yellow/70">
                         {formatFileSize(file.size)}
                       </p>
                     </div>
@@ -141,7 +157,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   <button
                     type="button"
                     onClick={() => removeFile(index)}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                    className="p-1 text-primary-yellow/60 hover:text-primary-pink transition-colors duration-200 flex-shrink-0 ml-2"
                   >
                     <X className="h-4 w-4" />
                   </button>

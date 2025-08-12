@@ -20,3 +20,4 @@ and use the color palette to create a visually appealing and user-friendly inter
 The frontend should be futuristic and icons and animations used should be smooth and modern.
 All aws and firebase credentials should be stored securely in a .env file and not exposed in the frontend code.
 Do not over engineer the application keep it simple and make sure the user can upload files easily using web browser, mobile devices and also have an option to drag and drop files into the upload area.
+We need the frontend to be responsive and should have toasts to inform the user about the status of their uploads, success or failure.

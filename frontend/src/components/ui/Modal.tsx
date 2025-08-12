@@ -39,7 +39,7 @@ const Modal: React.FC<ModalProps> = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-50" />
+          <div className="fixed inset-0 bg-black bg-opacity-75" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -55,7 +55,7 @@ const Modal: React.FC<ModalProps> = ({
             >
               <Dialog.Panel
                 className={cn(
-                  'w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all',
+                  'w-full transform overflow-hidden rounded-2xl bg-primary-black border border-primary-purple/30 p-6 text-left align-middle shadow-2xl transition-all glow',
                   sizeClasses[size]
                 )}
               >
@@ -64,7 +64,7 @@ const Modal: React.FC<ModalProps> = ({
                     {title && (
                       <Dialog.Title
                         as="h3"
-                        className="text-lg font-medium leading-6 text-gray-900"
+                        className="text-lg font-medium leading-6 text-primary-yellow"
                       >
                         {title}
                       </Dialog.Title>
@@ -72,7 +72,7 @@ const Modal: React.FC<ModalProps> = ({
                     {showCloseButton && (
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-purple transition-colors duration-200"
+                        className="inline-flex items-center justify-center p-2 rounded-md text-primary-yellow/60 hover:text-primary-yellow hover:bg-primary-purple/20 focus:outline-none focus:ring-2 focus:ring-primary-purple transition-all duration-200"
                         onClick={onClose}
                       >
                         <X className="h-5 w-5" />
@@ -80,7 +80,9 @@ const Modal: React.FC<ModalProps> = ({
                     )}
                   </div>
                 )}
-                {children}
+                <div className="text-primary-yellow">
+                  {children}
+                </div>
               </Dialog.Panel>
             </Transition.Child>
           </div>

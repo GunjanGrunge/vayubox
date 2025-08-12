@@ -75,7 +75,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
             <span className="text-2xl font-bold text-white">D</span>
           </motion.div>
           <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-600 mt-2">Join DropAws today</p>
+          <p className="text-gray-600 mt-2">Join Vayubox today</p>
         </div>
 
         {error && (

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/SimpleAuthContext';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { LoginForm } from '@/components/auth/LoginForm';
 
@@ -26,13 +26,13 @@ export default function Home() {
             transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
             className="w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto"
           />
-          <p className="text-white mt-4 font-medium">Loading DropAws...</p>
+          <p className="text-white mt-4 font-medium">Loading Vayubox...</p>
         </motion.div>
       </div>
     );
   }
 
-  if (user) {
+  if (user?.isAuthenticated) {
     return <DashboardLayout />;
   }
 
@@ -54,7 +54,7 @@ export default function Home() {
             Your Files
           </h1>
           <p className="text-xl mb-8 text-white/90 leading-relaxed">
-            DropAws provides secure cloud storage with powerful organization
+            Vayubox provides secure cloud storage with powerful organization
             tools. Upload, manage, and share your files with ease.
           </p>
           <div className="flex items-center space-x-8">

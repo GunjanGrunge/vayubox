@@ -2,9 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { FileItem, Folder, UploadProgress, SearchFilters, ViewMode, SortBy, SortOrder } from '@/types';
-import { collection, query, where, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from './AuthContext';
+import { useAuth } from './SimpleAuthContext';
+import toast from '@/lib/toast';
 
 interface FileContextType {
   files: FileItem[];
@@ -28,23 +27,20 @@ interface FileContextType {
   renameFolder: (folderId: string, newName: string) => Promise<void>;
   moveFile: (fileId: string, newFolderId?: string) => Promise<void>;
   moveFolder: (folderId: string, newParentId?: string) => Promise<void>;
-  toggleFileStar: (fileId: string) => Promise<void>;
-  toggleFolderStar: (folderId: string) => Promise<void>;
-  searchFiles: (filters: SearchFilters) => Promise<void>;
+  toggleFavorite: (fileId: string) => Promise<void>;
+  starFile: (fileId: string) => Promise<void>;
   setViewMode: (mode: ViewMode) => void;
   setSorting: (sortBy: SortBy, order: SortOrder) => void;
+  setSearchFilters: (filters: SearchFilters) => void;
   setCurrentFolder: (folder: Folder | null) => void;
+  getFilesByType: (type: string) => FileItem[];
+  getRecentFiles: (limit?: number) => FileItem[];
+  getFavoriteFiles: () => FileItem[];
+  getFileSize: (fileId: string) => number;
+  getTotalStorageUsed: () => number;
 }
 
 const FileContext = createContext<FileContextType | undefined>(undefined);
-
-export function useFiles() {
-  const context = useContext(FileContext);
-  if (context === undefined) {
-    throw new Error('useFiles must be used within a FileProvider');
-  }
-  return context;
-}
 
 export function FileProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -53,180 +49,344 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortBy>('date');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' });
+  const [sortBy, setSortBy] = useState<SortBy>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [loading, setLoading] = useState(false);
 
+  // Load files from API
   const loadFiles = useCallback(async (folderId?: string) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const filesRef = collection(db, 'files');
-      const q = query(
-        filesRef,
-        where('userId', '==', user.uid),
-        where('folderId', '==', folderId || null),
-        orderBy('uploadedAt', 'desc')
-      );
+      const url = `/api/files${folderId ? `?folderId=${folderId}` : ''}`;
+      const response = await fetch(url);
+      const data = await response.json();
       
-      const snapshot = await getDocs(q);
-      const filesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        uploadedAt: doc.data().uploadedAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as FileItem[];
-      
-      setFiles(filesData);
+      if (data.success) {
+        setFiles(data.files);
+        // toast.success('Files loaded successfully'); // Removing unnecessary toast
+      } else {
+        toast.error(data.message || 'Failed to load files');
+      }
     } catch (error) {
       console.error('Error loading files:', error);
+      toast.error('Failed to load files');
     } finally {
       setLoading(false);
     }
   }, [user]);
 
+  // Load folders from API
   const loadFolders = useCallback(async (parentId?: string) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const foldersRef = collection(db, 'folders');
-      const q = query(
-        foldersRef,
-        where('userId', '==', user.uid),
-        where('parentId', '==', parentId || null),
-        orderBy('createdAt', 'desc')
-      );
+      const url = `/api/folders${parentId ? `?parentId=${parentId}` : ''}`;
+      const response = await fetch(url);
+      const data = await response.json();
       
-      const snapshot = await getDocs(q);
-      const foldersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as Folder[];
-      
-      setFolders(foldersData);
+      if (data.success) {
+        setFolders(data.folders);
+        // toast.success('Folders loaded successfully'); // Removing unnecessary toast
+      } else {
+        toast.error(data.message || 'Failed to load folders');
+      }
     } catch (error) {
       console.error('Error loading folders:', error);
+      toast.error('Failed to load folders');
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  const uploadFiles = async (files: File[], folderId?: string) => {
-    // This would integrate with AWS S3 upload logic
-    // For now, we'll just create the file records
-    console.log('Uploading files:', files, 'to folder:', folderId);
-  };
-
-  const createFolder = async (name: string, parentId?: string) => {
+  // Upload files to AWS S3 via API
+  const uploadFiles = useCallback(async (files: File[], folderId?: string) => {
     if (!user) return;
     
-    const newFolder: Omit<Folder, 'id'> = {
-      name,
-      parentId,
-      userId: user.uid,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isStarred: false,
-      path: parentId ? `${currentFolder?.path || ''}/${name}` : name,
-    };
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      if (folderId) formData.append('folderId', folderId);
+      
+      const response = await fetch('/api/files', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Add uploaded files to current state
+        setFiles(prev => [...prev, ...data.files]);
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Failed to upload files');
+      }
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      toast.error('Failed to upload files');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Create folder via API
+  const createFolder = useCallback(async (name: string, parentId?: string) => {
+    if (!user) return;
     
-    const docRef = await addDoc(collection(db, 'folders'), newFolder);
-    setFolders(prev => [...prev, { ...newFolder, id: docRef.id }]);
-  };
+    try {
+      const response = await fetch('/api/folders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, parentId }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Add new folder to current state
+        setFolders(prev => [...prev, data.folder]);
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Failed to create folder');
+      }
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      toast.error('Failed to create folder');
+    }
+  }, [user]);
 
-  const deleteFile = async (fileId: string) => {
-    await deleteDoc(doc(db, 'files', fileId));
-    setFiles(prev => prev.filter(file => file.id !== fileId));
-  };
+  // Delete file via API
+  const deleteFile = useCallback(async (fileId: string) => {
+    try {
+      // Find the file to get its S3 key
+      const file = files.find(f => f.id === fileId);
+      if (!file) {
+        toast.error('File not found');
+        return;
+      }
 
-  const deleteFolder = async (folderId: string) => {
-    await deleteDoc(doc(db, 'folders', folderId));
-    setFolders(prev => prev.filter(folder => folder.id !== folderId));
-  };
+      const response = await fetch(`/api/files?s3Key=${encodeURIComponent(file.s3Key || file.name)}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove file from current state
+        setFiles(prev => prev.filter(f => f.id !== fileId));
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Failed to delete file');
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast.error('Failed to delete file');
+    }
+  }, [files]);
 
-  const renameFile = async (fileId: string, newName: string) => {
-    await updateDoc(doc(db, 'files', fileId), {
-      name: newName,
-      updatedAt: new Date(),
-    });
-    setFiles(prev => prev.map(file => 
-      file.id === fileId ? { ...file, name: newName, updatedAt: new Date() } : file
-    ));
-  };
+  // Delete folder
+  const deleteFolder = useCallback(async (folderId: string) => {
+    try {
+      // Update localStorage
+      const storedFolders = localStorage.getItem('dropaws_folders');
+      const allFolders: Folder[] = storedFolders ? JSON.parse(storedFolders) : [];
+      const updatedFolders = allFolders.filter(folder => folder.id !== folderId);
+      localStorage.setItem('dropaws_folders', JSON.stringify(updatedFolders));
+      
+      // Update state
+      setFolders(prev => prev.filter(folder => folder.id !== folderId));
+      toast.success('Folder deleted successfully');
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      toast.error('Failed to delete folder');
+    }
+  }, []);
 
-  const renameFolder = async (folderId: string, newName: string) => {
-    await updateDoc(doc(db, 'folders', folderId), {
-      name: newName,
-      updatedAt: new Date(),
-    });
-    setFolders(prev => prev.map(folder => 
-      folder.id === folderId ? { ...folder, name: newName, updatedAt: new Date() } : folder
-    ));
-  };
-
-  const moveFile = async (fileId: string, newFolderId?: string) => {
-    await updateDoc(doc(db, 'files', fileId), {
-      folderId: newFolderId || null,
-      updatedAt: new Date(),
-    });
-    setFiles(prev => prev.map(file => 
-      file.id === fileId ? { ...file, folderId: newFolderId, updatedAt: new Date() } : file
-    ));
-  };
-
-  const moveFolder = async (folderId: string, newParentId?: string) => {
-    await updateDoc(doc(db, 'folders', folderId), {
-      parentId: newParentId || null,
-      updatedAt: new Date(),
-    });
-    setFolders(prev => prev.map(folder => 
-      folder.id === folderId ? { ...folder, parentId: newParentId, updatedAt: new Date() } : folder
-    ));
-  };
-
-  const toggleFileStar = async (fileId: string) => {
-    const file = files.find(f => f.id === fileId);
-    if (!file) return;
+  // Rename file via API
+  const renameFile = useCallback(async (fileId: string, newName: string) => {
+    if (!user) return;
     
-    const newStarred = !file.isStarred;
-    await updateDoc(doc(db, 'files', fileId), {
-      isStarred: newStarred,
-      updatedAt: new Date(),
-    });
-    setFiles(prev => prev.map(f => 
-      f.id === fileId ? { ...f, isStarred: newStarred, updatedAt: new Date() } : f
-    ));
-  };
+    try {
+      // Find the file to get its s3Key
+      const file = files.find(f => f.id === fileId);
+      if (!file || !file.s3Key) {
+        toast.error('File not found');
+        return;
+      }
 
-  const toggleFolderStar = async (folderId: string) => {
-    const folder = folders.find(f => f.id === folderId);
-    if (!folder) return;
+      const response = await fetch('/api/files', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'rename',
+          s3Key: file.s3Key,
+          newName,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the file in state with new name and s3Key
+        setFiles(prev => prev.map(f => 
+          f.id === fileId 
+            ? { ...f, name: newName, s3Key: data.newS3Key }
+            : f
+        ));
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Failed to rename file');
+      }
+    } catch (error) {
+      console.error('Error renaming file:', error);
+      toast.error('Failed to rename file');
+    }
+  }, [user, files]);
+
+  // Rename folder
+  const renameFolder = useCallback(async (folderId: string, newName: string) => {
+    try {
+      // Update localStorage
+      const storedFolders = localStorage.getItem('dropaws_folders');
+      const allFolders: Folder[] = storedFolders ? JSON.parse(storedFolders) : [];
+      const updatedFolders = allFolders.map(folder => 
+        folder.id === folderId ? { ...folder, name: newName } : folder
+      );
+      localStorage.setItem('dropaws_folders', JSON.stringify(updatedFolders));
+      
+      // Update state
+      setFolders(prev => prev.map(folder => 
+        folder.id === folderId ? { ...folder, name: newName } : folder
+      ));
+      toast.success('Folder renamed successfully');
+    } catch (error) {
+      console.error('Error renaming folder:', error);
+      toast.error('Failed to rename folder');
+    }
+  }, []);
+
+  // Move file via API
+  const moveFile = useCallback(async (fileId: string, newFolderId?: string) => {
+    if (!user) return;
     
-    const newStarred = !folder.isStarred;
-    await updateDoc(doc(db, 'folders', folderId), {
-      isStarred: newStarred,
-      updatedAt: new Date(),
-    });
-    setFolders(prev => prev.map(f => 
-      f.id === folderId ? { ...f, isStarred: newStarred, updatedAt: new Date() } : f
-    ));
-  };
+    try {
+      // Find the file to get its s3Key
+      const file = files.find(f => f.id === fileId);
+      if (!file || !file.s3Key) {
+        toast.error('File not found');
+        return;
+      }
 
-  const searchFiles = async (filters: SearchFilters) => {
-    setSearchFilters(filters);
-    // Implement search logic here
-    console.log('Searching with filters:', filters);
-  };
+      const response = await fetch('/api/files', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'move',
+          s3Key: file.s3Key,
+          newFolderId,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the file in state with new folderId and s3Key
+        setFiles(prev => prev.map(f => 
+          f.id === fileId 
+            ? { ...f, folderId: newFolderId, s3Key: data.newS3Key }
+            : f
+        ));
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || 'Failed to move file');
+      }
+    } catch (error) {
+      console.error('Error moving file:', error);
+      toast.error('Failed to move file');
+    }
+  }, [user, files]);
 
-  const setSorting = (newSortBy: SortBy, order: SortOrder) => {
+  // Move folder
+  const moveFolder = useCallback(async (folderId: string, newParentId?: string) => {
+    try {
+      // For now, just update local state since we don't have API for moving
+      setFolders(prev => prev.map(folder => 
+        folder.id === folderId ? { ...folder, parentId: newParentId } : folder
+      ));
+      toast.success('Folder moved successfully');
+    } catch (error) {
+      console.error('Error moving folder:', error);
+      toast.error('Failed to move folder');
+    }
+  }, []);
+
+  // Toggle favorite (using isStarred)
+  const toggleFavorite = useCallback(async (fileId: string) => {
+    try {
+      // For now, just update local state since we don't have API for favorites
+      setFiles(prev => prev.map(file => 
+        file.id === fileId ? { ...file, isStarred: !file.isStarred } : file
+      ));
+      toast.success('File star status updated');
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update star status');
+    }
+  }, []);
+
+  // Star file (same as toggle favorite)
+  const starFile = useCallback(async (fileId: string) => {
+    try {
+      setFiles(prev => prev.map(file => 
+        file.id === fileId ? { ...file, isStarred: !file.isStarred } : file
+      ));
+      toast.success('File star status updated');
+    } catch (error) {
+      console.error('Error starring file:', error);
+      toast.error('Failed to update star status');
+    }
+  }, []);
+
+  // Set sorting
+  const setSorting = useCallback((newSortBy: SortBy, newOrder: SortOrder) => {
     setSortBy(newSortBy);
-    setSortOrder(order);
-  };
+    setSortOrder(newOrder);
+  }, []);
+
+  // Utility functions
+  const getFilesByType = useCallback((type: string) => {
+    return files.filter(file => file.type.startsWith(type));
+  }, [files]);
+
+  const getRecentFiles = useCallback((limit = 10) => {
+    return [...files]
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
+      .slice(0, limit);
+  }, [files]);
+
+  const getFavoriteFiles = useCallback(() => {
+    return files.filter(file => file.isStarred);
+  }, [files]);
+
+  const getFileSize = useCallback((fileId: string) => {
+    const file = files.find(f => f.id === fileId);
+    return file?.size || 0;
+  }, [files]);
+
+  const getTotalStorageUsed = useCallback(() => {
+    return files.reduce((total, file) => total + (file.size || 0), 0);
+  }, [files]);
 
   const value: FileContextType = {
     files,
@@ -248,13 +408,26 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     renameFolder,
     moveFile,
     moveFolder,
-    toggleFileStar,
-    toggleFolderStar,
-    searchFiles,
+    toggleFavorite,
+    starFile,
     setViewMode,
     setSorting,
+    setSearchFilters,
     setCurrentFolder,
+    getFilesByType,
+    getRecentFiles,
+    getFavoriteFiles,
+    getFileSize,
+    getTotalStorageUsed,
   };
 
   return <FileContext.Provider value={value}>{children}</FileContext.Provider>;
+}
+
+export function useFiles() {
+  const context = useContext(FileContext);
+  if (context === undefined) {
+    throw new Error('useFiles must be used within a FileProvider');
+  }
+  return context;
 }

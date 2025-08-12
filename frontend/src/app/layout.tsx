@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/SimpleAuthContext";
 import { FileProvider } from "@/contexts/FileContext";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,8 +11,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "DropAws - Cloud File Management",
+  title: "Vayubox - Cloud File Management",
   description: "Secure file storage and management in the cloud",
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
@@ -25,6 +31,31 @@ export default function RootLayout({
         <AuthProvider>
           <FileProvider>
             {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#000000',
+                  color: '#FAEB92',
+                  border: '1px solid #9929EA',
+                },
+                success: {
+                  style: {
+                    background: '#000000',
+                    color: '#FAEB92',
+                    border: '1px solid #9929EA',
+                  },
+                },
+                error: {
+                  style: {
+                    background: '#000000',
+                    color: '#CC66DA',
+                    border: '1px solid #9929EA',
+                  },
+                },
+              }}
+            />
           </FileProvider>
         </AuthProvider>
       </body>

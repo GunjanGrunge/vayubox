@@ -13,6 +13,7 @@ export interface FileItem {
   size: number;
   type: string;
   url: string;
+  s3Key?: string;
   thumbnailUrl?: string;
   uploadedAt: Date;
   updatedAt: Date;

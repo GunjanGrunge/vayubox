@@ -6,6 +6,18 @@ import { Search, X, Clock, File, Folder } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
+// Helper function to safely format dates
+const formatDate = (dateValue: string | Date): string => {
+  if (!dateValue) return 'Unknown';
+  
+  try {
+    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+    return date.toLocaleDateString();
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
+
 interface SearchResult {
   id: string;
   name: string;
@@ -147,12 +159,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-80 overflow-y-auto"
+            className="absolute top-full left-0 right-0 mt-2 bg-primary-black/90 backdrop-blur-sm rounded-lg shadow-xl border border-primary-purple/30 z-50 max-h-80 overflow-y-auto glow"
           >
             {query.length === 0 ? (
               // Recent searches
               <div className="p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                <h4 className="text-sm font-medium text-primary-yellow mb-3 flex items-center">
                   <Clock className="h-4 w-4 mr-2" />
                   Recent searches
                 </h4>
@@ -161,7 +173,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <button
                       key={index}
                       onClick={() => handleRecentSearchClick(search)}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md transition-colors duration-150"
+                      className="w-full text-left px-3 py-2 text-sm text-primary-yellow/80 hover:bg-primary-purple/20 rounded-md transition-colors duration-150"
                     >
                       {search}
                     </button>
@@ -198,7 +210,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                           </p>
                         </div>
                         <div className="text-xs text-gray-400">
-                          {result.modifiedAt.toLocaleDateString()}
+                          {formatDate(result.modifiedAt)}
                         </div>
                       </div>
                     </motion.button>
