@@ -10,11 +10,13 @@ interface FileInfo {
   Metadata?: Record<string, string>;
 }
 
-// Initialize S3 client
-console.log('Environment variables debug:', {
+// Initialize S3 client with debugging
+console.log('S3 Environment variables debug:', {
   region: process.env.NEXT_PUBLIC_AWS_REGION,
   hasAccessKey: !!process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID,
+  hasSecretKey: !!process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY,
   hasBucket: !!process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME,
+  accessKeyLength: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID?.length || 0,
 });
 
 const s3Client = new S3Client({
@@ -23,6 +25,9 @@ const s3Client = new S3Client({
     accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY || '',
   },
+  // Add browser-specific configuration
+  forcePathStyle: true,
+  endpoint: undefined, // Use default AWS endpoint
 });
 
 const BUCKET_NAME = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME || 'awsdropbox101';
