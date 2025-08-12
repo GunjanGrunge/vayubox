@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { FileItem, Folder, UploadProgress, SearchFilters, ViewMode, SortBy, SortOrder } from '@/types';
+import { FileItem, Folder, SearchFilters, ViewMode, SortBy, SortOrder } from '@/types';
 import { useAuth } from './SimpleAuthContext';
 import toast from '@/lib/toast';
 
@@ -9,7 +9,6 @@ interface FileContextType {
   files: FileItem[];
   folders: Folder[];
   currentFolder: Folder | null;
-  uploadProgress: UploadProgress[];
   viewMode: ViewMode;
   sortBy: SortBy;
   sortOrder: SortOrder;
@@ -47,7 +46,6 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
-  const [uploadProgress, _setUploadProgress] = useState<UploadProgress[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -392,7 +390,6 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     files,
     folders,
     currentFolder,
-    uploadProgress,
     viewMode,
     sortBy,
     sortOrder,

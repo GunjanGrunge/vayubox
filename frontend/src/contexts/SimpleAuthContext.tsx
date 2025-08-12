@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -59,10 +60,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('dropaws_user');
   };
 
+  const signUp = async (email: string, password: string): Promise<void> => {
+    // For this simple auth system, we'll just create a user account
+    // In a real app, you'd want to call an API to register the user
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      const userData = { email, isAuthenticated: true };
+      setUser(userData);
+      localStorage.setItem('dropaws_user', JSON.stringify(userData));
+    } else {
+      throw new Error('Registration not available for this demo app');
+    }
+  };
+
   const value = {
     user,
     loading,
     login,
+    signUp,
     logout,
   };
 
