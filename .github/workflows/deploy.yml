@@ -38,15 +38,15 @@ jobs:
     - name: Create environment file
       run: |
         cd frontend
-        echo "# Simple Authentication" > .env.local
-        echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env.local
-        echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> .env.local
+        echo "# Simple Authentication - Public variables for static build" > .env.local
+        echo "NEXT_PUBLIC_ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env.local
+        echo "NEXT_PUBLIC_ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> .env.local
         echo "" >> .env.local
-        echo "# AWS Configuration" >> .env.local
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env.local
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env.local
-        echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env.local
-        echo "AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}" >> .env.local
+        echo "# AWS Configuration - Public variables for browser access" >> .env.local
+        echo "NEXT_PUBLIC_AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env.local
+        echo "NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env.local
+        echo "NEXT_PUBLIC_AWS_REGION=${{ secrets.AWS_REGION }}" >> .env.local
+        echo "NEXT_PUBLIC_AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}" >> .env.local
         echo "" >> .env.local
         echo "# Next.js Configuration" >> .env.local
         echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env.local
