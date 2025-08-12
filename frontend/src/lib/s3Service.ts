@@ -10,15 +10,7 @@ interface FileInfo {
   Metadata?: Record<string, string>;
 }
 
-// Initialize S3 client with debugging
-console.log('S3 Environment variables debug:', {
-  region: process.env.NEXT_PUBLIC_AWS_REGION,
-  hasAccessKey: !!process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID,
-  hasSecretKey: !!process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY,
-  hasBucket: !!process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME,
-  accessKeyLength: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID?.length || 0,
-});
-
+// Initialize S3 client
 const s3Client = new S3Client({
   region: process.env.NEXT_PUBLIC_AWS_REGION || 'ap-south-1',
   credentials: {

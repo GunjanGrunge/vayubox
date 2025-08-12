@@ -32,17 +32,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Check credentials against public environment variables
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-      
-      console.log('Auth debug:', {
-        hasAdminEmail: !!adminEmail,
-        hasAdminPassword: !!adminPassword,
-        inputEmail: email,
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
-      
-      if (email === adminEmail && password === adminPassword) {
+
+      const data = await response.json();
+
+      if (data.success) {
         const userData = { email, isAuthenticated: true };
         setUser(userData);
         localStorage.setItem('dropaws_user', JSON.stringify(userData));
@@ -62,16 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string): Promise<void> => {
-    // For this simple auth system, we'll just create a user account
-    // Check against public environment variables
-    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-    
-    if (email === adminEmail && password === adminPassword) {
-      const userData = { email, isAuthenticated: true };
-      setUser(userData);
-      localStorage.setItem('dropaws_user', JSON.stringify(userData));
-    } else {
+    // For this simple auth system, sign up is the same as login
+    const success = await login(email, password);
+    if (!success) {
       throw new Error('Registration not available for this demo app');
     }
   };

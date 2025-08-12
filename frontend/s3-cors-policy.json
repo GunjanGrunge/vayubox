@@ -5,6 +5,7 @@
     "AllowedOrigins": [
       "https://gunjangrunge.github.io",
       "https://vayubox-5rmp6zsbx-gunjangrunges-projects.vercel.app",
+      "https://vayubox-f5oo0wpfj-gunjangrunges-projects.vercel.app",
       "https://vayubox.vercel.app",
       "https://*.vercel.app",
       "http://localhost:3000",

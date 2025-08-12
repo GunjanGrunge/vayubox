@@ -17,7 +17,7 @@ import { Modal } from '@/components/ui/Modal';
 import { FileUpload } from '@/components/FileUpload';
 import { FileGrid } from '@/components/FileGrid';
 import { useAuth } from '@/contexts/SimpleAuthContext';
-import { useFiles } from '@/contexts/FileContext';
+import { useFiles } from '@/contexts/SimpleFileContext';
 import { cn } from '@/lib/utils';
 import { Folder, FileItem } from '@/types';
 import toast from '@/lib/toast';
@@ -177,8 +177,8 @@ const DashboardLayout: React.FC = () => {
   };
 
   const handleMoveSubmit = async () => {
-    if (selectedFileId) {
-      await moveFile(selectedFileId, selectedTargetFolder || undefined);
+    if (selectedFileId && selectedTargetFolder) {
+      await moveFile(selectedFileId, selectedTargetFolder);
       setShowMoveModal(false);
       setSelectedFileId(null);
       setSelectedTargetFolder('');
