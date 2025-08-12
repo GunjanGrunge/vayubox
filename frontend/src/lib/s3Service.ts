@@ -11,6 +11,12 @@ interface FileInfo {
 }
 
 // Initialize S3 client
+console.log('Environment variables debug:', {
+  region: process.env.NEXT_PUBLIC_AWS_REGION,
+  hasAccessKey: !!process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID,
+  hasBucket: !!process.env.NEXT_PUBLIC_AWS_S3_BUCKET_NAME,
+});
+
 const s3Client = new S3Client({
   region: process.env.NEXT_PUBLIC_AWS_REGION || 'ap-south-1',
   credentials: {

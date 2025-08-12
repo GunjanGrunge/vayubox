@@ -36,6 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
       const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
       
+      console.log('Auth debug:', {
+        hasAdminEmail: !!adminEmail,
+        hasAdminPassword: !!adminPassword,
+        inputEmail: email,
+      });
+      
       if (email === adminEmail && password === adminPassword) {
         const userData = { email, isAuthenticated: true };
         setUser(userData);
