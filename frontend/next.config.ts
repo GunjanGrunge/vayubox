@@ -1,18 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  trailingSlash: true,
-  skipTrailingSlashRedirect: true,
-  distDir: 'out',
+  // Remove static export for Vercel - we need API routes
+  // output: 'export',
+  // trailingSlash: true,
+  // skipTrailingSlashRedirect: true,
+  // distDir: 'out',
+  // assetPrefix: process.env.NODE_ENV === 'production' ? '/vayubox' : '',
+  // basePath: process.env.NODE_ENV === 'production' ? '/vayubox' : '',
+  
+  // Vercel configuration
   images: {
-    unoptimized: true
+    domains: ['awsdropbox101.s3.ap-south-1.amazonaws.com'],
   },
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/vayubox' : '',
-  basePath: process.env.NODE_ENV === 'production' ? '/vayubox' : '',
-  // Exclude API routes for static export
-  generateBuildId: async () => {
-    return 'vayubox-static-build'
+  
+  // Environment variables
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
 };
 
