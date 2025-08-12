@@ -1,8 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { FileItem, Folder, SearchFilters, ViewMode, SortBy, SortOrder } from '@/types';
+import { FileItem, Folder, SearchFilters, ViewMode, SortBy, SortOrder, UploadProgress } from '@/types';
 import { useAuth } from './SimpleAuthContext';
+import { S3Service } from '@/lib/s3Service';
 import toast from '@/lib/toast';
 
 interface FileContextType {
@@ -14,6 +15,7 @@ interface FileContextType {
   sortOrder: SortOrder;
   searchFilters: SearchFilters;
   loading: boolean;
+  uploadProgresses: UploadProgress[];
   
   // Actions
   loadFiles: (folderId?: string) => Promise<void>;
@@ -51,23 +53,38 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' });
   const [loading, setLoading] = useState(false);
+  const [uploadProgresses, setUploadProgresses] = useState<UploadProgress[]>([]);
 
-  // Load files from API
+  // Load files from S3 directly
   const loadFiles = useCallback(async (folderId?: string) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const url = `/api/files${folderId ? `?folderId=${folderId}` : ''}`;
-      const response = await fetch(url);
-      const data = await response.json();
+      const prefix = folderId ? `${folderId}/` : '';
+      const s3Files = await S3Service.listFiles(prefix);
       
-      if (data.success) {
-        setFiles(data.files);
-        // toast.success('Files loaded successfully'); // Removing unnecessary toast
-      } else {
-        toast.error(data.message || 'Failed to load files');
-      }
+      const filesWithUrls = await Promise.all(
+        s3Files
+          .filter((item): item is { Key?: string; Size?: number; LastModified?: Date } => 'Key' in item)
+          .map(async (s3File) => ({
+            id: `file_${s3File.Key}`,
+            name: s3File.Key?.split('/').pop() || 'Unknown',
+            size: s3File.Size || 0,
+            type: 'application/octet-stream',
+            url: s3File.Key ? await S3Service.getPresignedUrl(s3File.Key) : '',
+            s3Key: s3File.Key,
+            folderId: folderId || undefined,
+            uploadedAt: s3File.LastModified || new Date(),
+            updatedAt: s3File.LastModified || new Date(),
+            userId: user.email,
+            tags: [] as string[],
+            isStarred: false,
+            path: s3File.Key || '',
+          }))
+      );
+      
+      setFiles(filesWithUrls);
     } catch (error) {
       console.error('Error loading files:', error);
       toast.error('Failed to load files');
@@ -76,22 +93,36 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Load folders from API
+  // Load folders from S3 - simplified version
   const loadFolders = useCallback(async (parentId?: string) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const url = `/api/folders${parentId ? `?parentId=${parentId}` : ''}`;
-      const response = await fetch(url);
-      const data = await response.json();
+      const prefix = parentId ? `${parentId}/` : '';
+      const s3Files = await S3Service.listFiles(prefix);
       
-      if (data.success) {
-        setFolders(data.folders);
-        // toast.success('Folders loaded successfully'); // Removing unnecessary toast
-      } else {
-        toast.error(data.message || 'Failed to load folders');
-      }
+      // Extract folder names from S3 prefixes - check for CommonPrefixes instead of Prefix
+      const folderPrefixes = s3Files
+        .filter((item) => 'Prefix' in item && item.Prefix)
+        .map((item) => {
+          const prefix = 'Prefix' in item ? item.Prefix! : '';
+          const folderName = prefix.replace(/\/$/, '').split('/').pop() || 'Unknown';
+          const folderPath = prefix.replace(/\/$/, '');
+          
+          return {
+            id: `folder_${prefix}`,
+            name: folderName,
+            parentId: parentId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            userId: user.email,
+            isStarred: false,
+            path: folderPath,
+          } as Folder;
+        });
+      
+      setFolders(folderPrefixes);
     } catch (error) {
       console.error('Error loading folders:', error);
       toast.error('Failed to load folders');
@@ -100,67 +131,119 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Upload files to AWS S3 via API
+  // Upload files using S3 directly
   const uploadFiles = useCallback(async (files: File[], folderId?: string) => {
     if (!user) return;
-    
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
-      if (folderId) formData.append('folderId', folderId);
-      
-      const response = await fetch('/api/files', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Add uploaded files to current state
-        setFiles(prev => [...prev, ...data.files]);
-        toast.success(data.message);
-      } else {
-        toast.error(data.message || 'Failed to upload files');
-      }
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      toast.error('Failed to upload files');
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
 
-  // Create folder via API
+    const newProgresses: UploadProgress[] = files.map((file) => ({
+      fileId: Math.random().toString(36).substr(2, 9),
+      fileName: file.name,
+      progress: 0,
+      status: 'uploading' as const,
+    }));
+
+    setUploadProgresses((prev) => [...prev, ...newProgresses]);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const progress = newProgresses[i];
+        
+        try {
+          // Generate S3 key with folder structure
+          const s3Key = folderId ? `${folderId}/${file.name}` : file.name;
+          
+          // Upload to S3
+          const url = await S3Service.uploadFile(file, s3Key, file.type);
+          
+          // Update progress to 100%
+          setUploadProgresses((prev) =>
+            prev.map((p) =>
+              p.fileId === progress.fileId
+                ? { ...p, progress: 100, status: 'completed' }
+                : p
+            )
+          );
+
+          // Create file item and add to state
+          const newFile: FileItem = {
+            id: progress.fileId,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            url: url,
+            s3Key: s3Key,
+            uploadedAt: new Date(),
+            updatedAt: new Date(),
+            userId: user.email,
+            folderId: folderId,
+            tags: [],
+            isStarred: false,
+            path: s3Key,
+          };
+
+          setFiles((prev) => [...prev, newFile]);
+
+        } catch (uploadError) {
+          console.error(`Error uploading ${file.name}:`, uploadError);
+          setUploadProgresses((prev) =>
+            prev.map((p) =>
+              p.fileId === progress.fileId
+                ? { ...p, status: 'error', error: `Failed to upload ${file.name}` }
+                : p
+            )
+          );
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      }
+
+      // Clear completed/error uploads after 3 seconds
+      setTimeout(() => {
+        const completedIds = newProgresses.map(p => p.fileId);
+        setUploadProgresses((prev) => 
+          prev.filter((p) => !completedIds.includes(p.fileId))
+        );
+      }, 3000);
+
+      toast.success(`Successfully uploaded ${files.length} file(s)`);
+      
+      // Reload files to refresh the view
+      await loadFiles(folderId);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Upload failed');
+    }
+  }, [user, loadFiles]);
+
+  // Create folder locally (for static deployment)
   const createFolder = useCallback(async (name: string, parentId?: string) => {
     if (!user) return;
     
     try {
-      const response = await fetch('/api/folders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, parentId }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Add new folder to current state
-        setFolders(prev => [...prev, data.folder]);
-        toast.success(data.message);
-      } else {
-        toast.error(data.message || 'Failed to create folder');
-      }
+      // Create a virtual folder
+      const folderPath = parentId ? `${parentId}/${name}` : name;
+      const newFolder: Folder = {
+        id: `folder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name,
+        parentId,
+        userId: user.email,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isStarred: false,
+        path: folderPath,
+      };
+
+      // Add new folder to current state
+      setFolders(prev => [...prev, newFolder]);
+      toast.success(`Folder "${name}" created successfully`);
     } catch (error) {
       console.error('Error creating folder:', error);
       toast.error('Failed to create folder');
     }
   }, [user]);
 
-  // Delete file via API
+  // Delete file using S3 directly
   const deleteFile = useCallback(async (fileId: string) => {
     try {
       // Find the file to get its S3 key
@@ -170,35 +253,23 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const response = await fetch(`/api/files?s3Key=${encodeURIComponent(file.s3Key || file.name)}`, {
-        method: 'DELETE',
-      });
+      // Delete from S3
+      await S3Service.deleteFile(file.s3Key || file.name);
       
-      const data = await response.json();
+      // Remove from local state
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+      toast.success('File deleted successfully');
       
-      if (data.success) {
-        // Remove file from current state
-        setFiles(prev => prev.filter(f => f.id !== fileId));
-        toast.success(data.message);
-      } else {
-        toast.error(data.message || 'Failed to delete file');
-      }
     } catch (error) {
       console.error('Error deleting file:', error);
       toast.error('Failed to delete file');
     }
   }, [files]);
 
-  // Delete folder
+  // Delete folder locally (virtual folders)
   const deleteFolder = useCallback(async (folderId: string) => {
     try {
-      // Update localStorage
-      const storedFolders = localStorage.getItem('dropaws_folders');
-      const allFolders: Folder[] = storedFolders ? JSON.parse(storedFolders) : [];
-      const updatedFolders = allFolders.filter(folder => folder.id !== folderId);
-      localStorage.setItem('dropaws_folders', JSON.stringify(updatedFolders));
-      
-      // Update state
+      // Update state - remove folder
       setFolders(prev => prev.filter(folder => folder.id !== folderId));
       toast.success('Folder deleted successfully');
     } catch (error) {
@@ -207,7 +278,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Rename file via API
+  // Rename file using S3 directly
   const renameFile = useCallback(async (fileId: string, newName: string) => {
     if (!user) return;
     
@@ -219,51 +290,29 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const response = await fetch('/api/files', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'rename',
-          s3Key: file.s3Key,
-          newName,
-        }),
-      });
+      // Rename in S3
+      const newS3Key = await S3Service.renameFile(file.s3Key, newName);
       
-      const data = await response.json();
+      // Update the file in state with new name and s3Key
+      setFiles(prev => prev.map(f => 
+        f.id === fileId 
+          ? { ...f, name: newName, s3Key: newS3Key, path: newS3Key }
+          : f
+      ));
+      toast.success('File renamed successfully');
       
-      if (data.success) {
-        // Update the file in state with new name and s3Key
-        setFiles(prev => prev.map(f => 
-          f.id === fileId 
-            ? { ...f, name: newName, s3Key: data.newS3Key }
-            : f
-        ));
-        toast.success(data.message);
-      } else {
-        toast.error(data.message || 'Failed to rename file');
-      }
     } catch (error) {
       console.error('Error renaming file:', error);
       toast.error('Failed to rename file');
     }
   }, [user, files]);
 
-  // Rename folder
+  // Rename folder locally (virtual folders)
   const renameFolder = useCallback(async (folderId: string, newName: string) => {
     try {
-      // Update localStorage
-      const storedFolders = localStorage.getItem('dropaws_folders');
-      const allFolders: Folder[] = storedFolders ? JSON.parse(storedFolders) : [];
-      const updatedFolders = allFolders.map(folder => 
-        folder.id === folderId ? { ...folder, name: newName } : folder
-      );
-      localStorage.setItem('dropaws_folders', JSON.stringify(updatedFolders));
-      
       // Update state
       setFolders(prev => prev.map(folder => 
-        folder.id === folderId ? { ...folder, name: newName } : folder
+        folder.id === folderId ? { ...folder, name: newName, path: folder.path.replace(/[^/]*$/, newName) } : folder
       ));
       toast.success('Folder renamed successfully');
     } catch (error) {
@@ -272,7 +321,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Move file via API
+  // Move file using S3 directly
   const moveFile = useCallback(async (fileId: string, newFolderId?: string) => {
     if (!user) return;
     
@@ -284,31 +333,21 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const response = await fetch('/api/files', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'move',
-          s3Key: file.s3Key,
-          newFolderId,
-        }),
-      });
+      // Generate new S3 key with new folder path
+      const fileName = file.name;
+      const newS3Key = newFolderId ? `${newFolderId}/${fileName}` : fileName;
       
-      const data = await response.json();
+      // Move in S3
+      await S3Service.moveFile(file.s3Key, newS3Key);
       
-      if (data.success) {
-        // Update the file in state with new folderId and s3Key
-        setFiles(prev => prev.map(f => 
-          f.id === fileId 
-            ? { ...f, folderId: newFolderId, s3Key: data.newS3Key }
-            : f
-        ));
-        toast.success(data.message);
-      } else {
-        toast.error(data.message || 'Failed to move file');
-      }
+      // Update the file in state with new folderId and s3Key
+      setFiles(prev => prev.map(f => 
+        f.id === fileId 
+          ? { ...f, folderId: newFolderId, s3Key: newS3Key, path: newS3Key }
+          : f
+      ));
+      toast.success('File moved successfully');
+      
     } catch (error) {
       console.error('Error moving file:', error);
       toast.error('Failed to move file');
@@ -395,6 +434,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     sortOrder,
     searchFilters,
     loading,
+    uploadProgresses,
     loadFiles,
     loadFolders,
     uploadFiles,

@@ -23,7 +23,7 @@ const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || 'awsdropbox101';
 
 export class S3Service {
   // Upload file to S3
-  static async uploadFile(file: Buffer, key: string, contentType: string): Promise<string> {
+  static async uploadFile(file: Buffer | File, key: string, contentType: string): Promise<string> {
     try {
       const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
